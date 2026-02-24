@@ -1,4 +1,5 @@
 ﻿using System.Globalization;
+using System.Text.Json;
 using Npgsql.Age.Types;
 using Xunit;
 
@@ -11,7 +12,7 @@ public class AgTypeTests
     [Fact]
     public void Constructor_ThrowException_When_AgtypeValueIsNull()
     {
-        Assert.Throws<NullReferenceException>(() => new Agtype(null!));
+        Assert.Throws<ArgumentNullException>(() => new Agtype(null!));
     }
 
     #endregion
@@ -47,7 +48,7 @@ public class AgTypeTests
     {
         var agtype = new Agtype("23");
 
-        Assert.Throws<FormatException>(() => agtype.GetBoolean());
+        Assert.Throws<JsonException>(() => agtype.GetBoolean());
     }
 
     #endregion
@@ -117,7 +118,7 @@ public class AgTypeTests
     {
         var agtype = new Agtype("true");
 
-        Assert.Throws<FormatException>(() => agtype.GetDouble());
+        Assert.Throws<JsonException>(() => agtype.GetDouble());
     }
 
     #endregion
@@ -139,7 +140,7 @@ public class AgTypeTests
     {
         var agtype = new Agtype("true");
 
-        Assert.Throws<FormatException>(() => agtype.GetInt32());
+        Assert.Throws<JsonException>(() => agtype.GetInt32());
     }
 
     #endregion
@@ -161,7 +162,7 @@ public class AgTypeTests
     {
         var agtype = new Agtype("true");
 
-        Assert.Throws<FormatException>(() => agtype.GetInt64());
+        Assert.Throws<JsonException>(() => agtype.GetInt64());
     }
 
     #endregion
@@ -183,7 +184,7 @@ public class AgTypeTests
     {
         var agtype = new Agtype("true");
 
-        Assert.Throws<FormatException>(() => agtype.GetDecimal());
+        Assert.Throws<JsonException>(() => agtype.GetDecimal());
     }
 
     #endregion
@@ -225,9 +226,9 @@ public class AgTypeTests
     public void GetList_Should_ReturnNegativeInfinity_When_Supplied_NegativeInfinity()
     {
         var list = new List<object?> { 1, 2, double.NegativeInfinity };
-        var agtype = new Agtype("[1, 2, \"-Infinity\"]");
+        var agtype = new Agtype("[1, 2, -Infinity]");
 
-        var agtypeList = agtype.GetList(true);
+        var agtypeList = agtype.GetList();
 
         Assert.Equal(list.Count, agtypeList.Count);
         Assert.Equal(list, agtypeList);
@@ -240,12 +241,11 @@ public class AgTypeTests
     [Fact]
     public void GetVertex_Should_ReturnEquivalentVertex()
     {
-        var vertex = new Vertex
-        {
-            Id = new(2343953235),
-            Label = "Person",
-            Properties = new() { { "name", "Emmanuel" }, { "age", 22 } },
-        };
+        var vertex = new Vertex(
+            Id: new(2343953235),
+            Label: "Person",
+            Properties: new() { { "name", "Emmanuel" }, { "age", 22 } }
+        );
         var agtype = new Agtype(vertex.ToString());
         var generatedVertex = agtype.GetVertex();
 
@@ -261,13 +261,13 @@ public class AgTypeTests
     public void GetEdge_Should_ReturnEquivalentEdge()
     {
         var edge = new Edge
-        {
-            Id = new(2),
-            StartId = new(0),
-            EndId = new(1),
-            Label = "Edge_label",
-            Properties = new() { { "colour", "red" } },
-        };
+        (
+            Id: new(2),
+            StartId: new(0),
+            EndId: new(1),
+            Label: "Edge_label",
+            Properties: new() { { "colour", "red" } }
+        );
         var agtype = new Agtype(edge.ToString());
         var generatedEdge = agtype.GetEdge();
 
@@ -287,35 +287,36 @@ public class AgTypeTests
         Vertex[] vertices =
         [
             new Vertex
-            {
-                Id = new(0),
-                Label = "Label_name_1",
-                Properties = new() { { "i", 0 } },
-            },
+            (
+                Id: new(0),
+                Label: "Label_name_1",
+                Properties: new() { { "i", 0 } }
+            ),
             new Vertex
-            {
-                Id = new(2),
-                Label = "Label_name_1",
-                Properties = [],
-            },
+            (
+                Id: new(2),
+                Label: "Label_name_1",
+                Properties: []
+            ),
         ];
         var edge = new Edge
-        {
-            Id = new(2),
-            StartId = vertices[0].Id,
-            EndId = vertices[1].Id,
-            Label = "Edge_label",
-            Properties = [],
-        };
+        (
+            Id: new(2),
+            StartId: vertices[0].Id,
+            EndId: vertices[1].Id,
+            Label: "Edge_label",
+            Properties: []
+        );
         var agtype = new Agtype($"[{vertices[0]}, {edge}, {vertices[1]}]{Age.Types.Path.FOOTER}");
         var path = agtype.GetPath();
 
+        Assert.Equal(@"[{""id"":0,""label"":""Label_name_1"",""properties"":{""i"":0}}::vertex,{""start_id"":0,""end_id"":2,""id"":2,""label"":""Edge_label"",""properties"":{}}::edge,{""id"":2,""label"":""Label_name_1"",""properties"":{}}::vertex]::path", path.ToString());
         Assert.Equal(1, path.Length);
-        Assert.Equal(2, path.Vertices.Length);
+        Assert.Equal(2, path.Vertices.Count());
         Assert.Single(path.Edges);
-        Assert.Equal(vertices, path.Vertices);
-        Assert.Equal(vertices[1].Properties, path.Vertices[1].Properties);
-        Assert.Equal(edge, path.Edges[0]);
+        Assert.Equivalent(vertices, path.Vertices.ToArray());
+        Assert.Equal(vertices[1].Properties, path.Vertices.ElementAt(1).Properties);
+        Assert.Equivalent(edge, path.Edges.ElementAt(0));
     }
 
     [Fact]
@@ -324,26 +325,26 @@ public class AgTypeTests
         Vertex[] vertices =
         [
             new Vertex
-            {
-                Id = new(0),
-                Label = "Label_name_1",
-                Properties = new() { { "i", 0 } },
-            },
+            (
+                Id: new(0),
+                Label: "Label_name_1",
+                Properties: new() { { "i", 0 } }
+            ),
             new Vertex
-            {
-                Id = new(2),
-                Label = "Label_name_1",
-                Properties = [],
-            },
+            (
+                Id: new(2),
+                Label: "Label_name_1",
+                Properties: []
+            ),
         ];
         var edge = new Edge
-        {
-            Id = new(2),
-            StartId = vertices[0].Id,
-            EndId = vertices[1].Id,
-            Label = "Edge_label",
-            Properties = [],
-        };
+        (
+            Id: new(2),
+            StartId: vertices[0].Id,
+            EndId: vertices[1].Id,
+            Label: "Edge_label",
+            Properties: []
+        );
         // Omit the path footer.
         var agtype = new Agtype($"[{vertices[0]}, {edge}, {vertices[1]}]");
 

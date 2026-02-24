@@ -255,6 +255,108 @@ $$) as (value agtype);",
     }
 
     [Fact]
+    public async Task ExecuteCypherQueryAsync_WithEscapedStringReturn_Should_Work()
+    {
+        var graphName = await CreateTempGraphAsync();
+        await using var connection = await DataSource.OpenConnectionAsync();
+
+        await using var command = connection.CreateCypherCommand(
+            graphName,
+            @"WITH 'This\u00A0is a and\/or string\r\n\tw\\some \'special\' ""characters"" and \\""escaped quotes\\"".' as p
+	RETURN p"
+        );
+        var str = (string)(Agtype)(await command.ExecuteScalarAsync());
+
+        Assert.Equal("This\u00A0is a and/or string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\".", str);
+        await DropTempGraphAsync(graphName);
+    }
+
+    [Fact]
+    public async Task ExecuteCypherQueryAsync_WithEscapedJsonStringReturn_Should_Work()
+    {
+        var graphName = await CreateTempGraphAsync();
+        await using var connection = await DataSource.OpenConnectionAsync();
+
+        await using var command = connection.CreateCypherCommand(
+            graphName,
+            @"WITH '""This\\u00A0is a and\\/or string\\r\\n\\tw\\\\some \'special\' \\\""characters\\\"" and \\\\\\\""escaped quotes\\\\\\\"".""'::jsonb::agtype as p
+RETURN p"
+        );
+        var str = (string)(Agtype)(await command.ExecuteScalarAsync());
+
+        Assert.Equal("This\u00A0is a and/or string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\".", str);
+        await DropTempGraphAsync(graphName);
+    }
+
+    [Fact]
+    public async Task ExecuteCypherQueryAsync_WithObjectReturn_Should_Work()
+    {
+        var graphName = await CreateTempGraphAsync();
+        await using var connection = await DataSource.OpenConnectionAsync();
+
+        await using var command = connection.CreateCypherCommand(
+            graphName,
+            @"WITH [{id: 0, label: ""label_name_1"", properties: {
+	n: [null, 5, 3.1, 3.2::float4, 3.3::money, 3.14::int, 12345::int8, 'nan'::float, 'infinity'::float, '-infinity'::float, '3.1E-11'::float, 5.34::numeric],
+	b: [true, false, 0::boolean],
+	t: ['2026-02-19T13:14:00'::date, '2026-02-19T13:14:00'::timestamp],
+	s: 'This is a string\r\n\tw\\some \'special\' ""characters"" and \\""escaped quotes\\"".',
+	ip: 'Anything'::bytea
+	}}::vertex,
+    {id: 2, start_id: 0, end_id: 1, label: ""edge_label"", properties: {
+	m: [{`Key ``is`` ""special""`: 'value'}, '{""This is a string\\r\\n\\tw\\\\some \'special\' \\\""characters\\\"" and \\\\\\\""escaped quotes\\\\\\\""."": ""value""}'::jsonb::agtype]
+	}}::edge,
+    {id: 1, label: ""label_name_2"", properties: {}}::vertex
+]::path as p
+RETURN p"
+        );
+        await using var dataReader = await command.ExecuteReaderAsync();
+
+        Assert.NotNull(dataReader);
+        Assert.True(dataReader.HasRows);
+        Assert.True(await dataReader.ReadAsync());
+
+        var agResult = await dataReader.GetFieldValueAsync<Agtype?>(0);
+        var path = Assert.IsType<Age.Types.Path>(agResult?.Get<object>());
+
+        var vertex1 = Assert.IsType<Vertex>(path.Segments[0]);
+        Assert.Equal(new GraphId(0), vertex1.Id);
+        Assert.Equal("label_name_1", vertex1.Label);
+        Assert.True(vertex1.Properties.TryGetValue("n", out var propN));
+        Assert.Equal(new object?[] { null, 5, 3.1, 3.2m, "$3.30", 3, 12345, double.NaN, double.PositiveInfinity, double.NegativeInfinity, 3.1E-11, 5.34m }, Assert.IsType<List<object>>(propN));
+        Assert.True(vertex1.Properties.TryGetValue("b", out var propB));
+        Assert.Equal(new object?[] { true, false, false }, Assert.IsType<List<object>>(propB));
+        Assert.True(vertex1.Properties.TryGetValue("t", out var propT));
+        Assert.Equal(new object?[] { "2026-02-19", "2026-02-19T13:14:00" }, Assert.IsType<List<object>>(propT));
+        Assert.True(vertex1.Properties.TryGetValue("s", out var propS));
+        Assert.Equal("This is a string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\".", Assert.IsType<string>(propS));
+        Assert.True(vertex1.Properties.TryGetValue("ip", out var propIp));
+        Assert.Equal(@"\x416e797468696e67", Assert.IsType<string>(propIp));
+
+        var edge = Assert.IsType<Edge>(path.Segments[1]);
+        Assert.Equal(new GraphId(2), edge.Id);
+        Assert.Equal(new GraphId(0), edge.StartId);
+        Assert.Equal(new GraphId(1), edge.EndId);
+        Assert.Equal("edge_label", edge.Label);
+        Assert.True(edge.Properties.TryGetValue("m", out var propM));
+        Assert.Equal(new object[]
+        {
+            new Dictionary<string, object>() {
+                { @"Key `is` ""special""", "value"},
+            },
+            new Dictionary<string, object>() {
+                { "This is a string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\".", "value" }
+            }
+        }, Assert.IsType<List<object>>(propM));
+
+        var vertex2 = Assert.IsType<Vertex>(path.Segments[2]);
+        Assert.Equal(new GraphId(1), vertex2.Id);
+        Assert.Equal("label_name_2", vertex2.Label);
+
+        await DropTempGraphAsync(graphName);
+    }
+
+    [Fact]
     public async Task ExecuteCypherQueryAsync_WithDictionaryParameters_Should_ReturnCorrectResults()
     {
         var graphName = await CreateTempGraphAsync();
@@ -536,6 +638,84 @@ $$) as (value agtype);",
             hobbiesResult?.GetList()
         );
         Assert.Equal(new object[] { 85, 92, 78, 95 }, scoresResult?.GetList());
+
+        await DropTempGraphAsync(graphName);
+    }
+
+    [Fact]
+    public async Task ExecuteCypherQueryAsync_WithQuotedStringValues_Should_Work()
+    {
+        var graphName = await CreateTempGraphAsync();
+        await using var connection = await DataSource.OpenConnectionAsync();
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["data"] = new Dictionary<string, object>
+            {
+                ["escapes"] = "\"characters\" and \\\"escaped quotes\\\" and \\\\\"escaped quotes\\\\\"."
+            },
+        };
+
+        await using var command = connection.CreateCypherCommand(
+            graphName,
+            @"UNWIND [
+  '""characters"" and \\""escaped quotes\\"" and \\\\""escaped quotes\\\\"".' ,
+  '""\\\""characters\\\"" and \\\\\\\""escaped quotes\\\\\\\"" and \\\\\\\\\\\""escaped quotes\\\\\\\\\\\"".""'::jsonb::agtype,
+  $data.escapes
+] as v
+RETURN v + ' -> ' + replace(v, '""', '$') as p",
+            parameters
+        );
+        await using var dataReader = await command.ExecuteReaderAsync();
+
+        Assert.NotNull(dataReader);
+        Assert.True(dataReader.HasRows);
+
+        var actual = new List<string>();
+        while(await dataReader.ReadAsync())
+        {
+            var mainResult = await dataReader.GetFieldValueAsync<Agtype>(0);
+            actual.Add((string)mainResult);
+        }
+        var expected = Enumerable.Repeat(@"""characters"" and \""escaped quotes\"" and \\""escaped quotes\\"". -> $characters$ and \$escaped quotes\$ and \\$escaped quotes\\$.", 3).ToList();
+
+        Assert.Equal(expected, actual);
+
+        await DropTempGraphAsync(graphName);
+    }
+
+    [Fact]
+    public async Task ExecuteCypherQueryAsync_WithSpecialValues_Should_Work()
+    {
+        var graphName = await CreateTempGraphAsync();
+        await using var connection = await DataSource.OpenConnectionAsync();
+
+        var parameters = new Dictionary<string, object?>
+        {
+            ["data"] = new Dictionary<string, object>
+            {
+                ["integer"] = 3,
+                ["inf"] = double.PositiveInfinity,
+                ["decimal"] = 7.893m,
+                ["escapes"] = "This\u00A0is a and/or string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\"."
+            },
+        };
+
+        await using var command = connection.CreateCypherCommand(
+            graphName,
+            "RETURN $data",
+            parameters
+        );
+        await using var dataReader = await command.ExecuteReaderAsync();
+
+        Assert.NotNull(dataReader);
+        Assert.True(dataReader.HasRows);
+        Assert.True(await dataReader.ReadAsync());
+
+        var mainResult = await dataReader.GetFieldValueAsync<Agtype>(0);
+        var actual = mainResult.Get<Dictionary<string, object>>();
+
+        Assert.Equivalent(parameters["data"], actual);
 
         await DropTempGraphAsync(graphName);
     }
