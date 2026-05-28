@@ -44,9 +44,9 @@ namespace Npgsql.Age.Internal.JsonConverters
                     {
                         var type = readerClone.GetString();
                         if (type == "edge")
-                            return JsonSerializer.Deserialize<Edge<Dictionary<string, object>>>(ref reader, options);
+                            return JsonSerializer.Deserialize<Edge>(ref reader, options);
                         else if (type == "vertex")
-                            return JsonSerializer.Deserialize<Vertex<Dictionary<string, object>>>(ref reader, options);
+                            return JsonSerializer.Deserialize<Vertex>(ref reader, options);
                         else if (type == "path")
                             return JsonSerializer.Deserialize<Path>(ref reader, options);
                     }

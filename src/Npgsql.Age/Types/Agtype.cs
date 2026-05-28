@@ -494,7 +494,7 @@ namespace Npgsql.Age.Types
                         var hasContent = segments.Count - 1 > index;
                         var prefix = next == ']'
                             ? hasContent
-                                ? $@"{{""$type"":""{kind}"",""segments"":"
+                                ? $@"{{""$type"":""{kind}"",""segments"":["
                                 : $@"{{""$type"":""{kind}"",""segments"":[]"
                             : hasContent
                                 ? $@"{{""$type"":""{kind}"","

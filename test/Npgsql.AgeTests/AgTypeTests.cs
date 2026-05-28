@@ -445,7 +445,7 @@ public class AgTypeTests
     public void GetList_OnVertexArray_Should_ReturnVerticesWithCorrectProperties()
     {
         var vertex = new Vertex(new(2343953235), "Person", new() { { "name", "Emmanuel" } });
-        var agtype = Agtype.Create(vertex);
+        var agtype = new Agtype($"[{vertex}]");
         var list = agtype.GetList();
         Assert.Single(list);
         var parsed = Assert.IsType<Vertex>(list[0]);
