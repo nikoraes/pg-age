@@ -20,6 +20,7 @@ namespace Npgsql.Age.Internal.JsonConverters
                 new DoubleConverter(),
                 new DecimalConverter(),
                 new IntegerConverter(),
+                new PathObjectConverter(),
                 new InferredObjectConverter(),
             },
             TypeInfoResolver = new DefaultJsonTypeInfoResolver
