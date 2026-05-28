@@ -27,7 +27,7 @@ public class TestBase
             ) { SearchPath = "ag_catalog, \"$user\", public" }.ConnectionString
         ).Build().OpenConnectionAsync();
         await using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT version FROM ag_catalog.ag_version()";
+        cmd.CommandText = "SELECT extversion FROM pg_extension WHERE extname = 'age'";
         var versionStr = (await cmd.ExecuteScalarAsync())?.ToString() ?? "1.5.0";
         var parts = versionStr.Split('.');
         return parts.Length >= 2
