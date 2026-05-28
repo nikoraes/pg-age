@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Buffers;
+using System.Collections.Generic;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Npgsql.Age.Internal;
@@ -84,7 +86,7 @@ namespace Npgsql.Age
         )
         {
             string query =
-                $"SELECT * FROM ag_catalog.cypher('{graphName}', $$ {CypherHelpers.EscapeCypher(cypher)} $$) as {CypherHelpers.GenerateAsPart(cypher)};";
+                $"SELECT * FROM ag_catalog.cypher('{graphName}', $$ {cypher} $$) as {CypherHelpers.GenerateAsPart(cypher)};";
             return new NpgsqlCommand(query, connection);
         }
 
@@ -103,8 +105,7 @@ namespace Npgsql.Age
             Dictionary<string, object?> parameters
         )
         {
-            string parametersJson = JsonSerializer.Serialize(parameters);
-            return CreateCypherCommand(connection, graphName, cypher, parametersJson);
+            return CreateCypherCommand(connection, graphName, cypher, Agtype.Create(parameters));
         }
 
         /// <summary>
@@ -122,8 +123,7 @@ namespace Npgsql.Age
             JsonObject parameters
         )
         {
-            string parametersJson = JsonSerializer.Serialize(parameters);
-            return CreateCypherCommand(connection, graphName, cypher, parametersJson);
+            return CreateCypherCommand(connection, graphName, cypher, Agtype.Create(parameters));
         }
 
         /// <summary>
@@ -141,8 +141,7 @@ namespace Npgsql.Age
             JsonElement parameters
         )
         {
-            string parametersJson = JsonSerializer.Serialize(parameters);
-            return CreateCypherCommand(connection, graphName, cypher, parametersJson);
+            return CreateCypherCommand(connection, graphName, cypher, Agtype.Create(parameters));
         }
 
         /// <summary>
@@ -180,7 +179,7 @@ namespace Npgsql.Age
         {
             // Cast the text parameter to agtype in the query, similar to how Apache AGE tests do it
             string query =
-                $"SELECT * FROM ag_catalog.cypher('{graphName}', $$ {CypherHelpers.EscapeCypher(cypher)} $$, $1) as {CypherHelpers.GenerateAsPart(cypher)};";
+                $"SELECT * FROM ag_catalog.cypher('{graphName}', $$ {cypher} $$, $1) as {CypherHelpers.GenerateAsPart(cypher)};";
             var command = new NpgsqlCommand(query, connection);
             command.Parameters.Add(
                 new NpgsqlParameter { Value = parameters, DataTypeName = "ag_catalog.agtype" }

@@ -157,14 +157,6 @@ namespace Npgsql.Age.Internal
             return $"({asPart})";
         }
 
-        internal static string EscapeCypher(string cypher)
-        {
-            // Escape backslashes
-            cypher = Regex.Replace(cypher, @"\\(?!')", "\\\\");
-
-            return cypher;
-        }
-
         // Helper method to replace string literals with placeholders to avoid matching content inside strings
         private static string ReplaceStringLiterals(string cypher)
         {
