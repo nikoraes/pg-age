@@ -269,9 +269,11 @@ $$) as (value agtype);",
     }
 
     // This test uses ::jsonb::agtype chained cast which is only available in AGE 1.6.0+
-    [Fact(Skip = "Does not work with AGE 1.5.0")]
+    [Fact]
     public async Task ExecuteCypherQueryAsync_WithEscapedJsonStringReturn_Should_Work()
     {
+        if (!await AgeVersionSupportsTypeCasts())
+            return;
         var graphName = await CreateTempGraphAsync();
         await using var connection = await DataSource.OpenConnectionAsync();
 
@@ -289,6 +291,8 @@ RETURN p"
     [Fact]
     public async Task ExecuteCypherQueryAsync_WithObjectReturn_Should_Work()
     {
+        if (!await AgeVersionSupportsTypeCasts())
+            return;
         var graphName = await CreateTempGraphAsync();
         await using var connection = await DataSource.OpenConnectionAsync();
 
