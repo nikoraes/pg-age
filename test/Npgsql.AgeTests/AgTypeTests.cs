@@ -437,8 +437,8 @@ public class AgTypeTests
     {
         var agtype = new Agtype("[{}::vertex, {}::edge]");
         var elements = agtype.GetList();
-        Assert.IsType<Vertex>(elements[0]);
-        Assert.IsType<Edge>(elements[1]);
+        Assert.IsType<Vertex<Dictionary<string, object>>>(elements[0]);
+        Assert.IsType<Edge<Dictionary<string, object>>>(elements[1]);
     }
 
     [Fact]
@@ -448,7 +448,7 @@ public class AgTypeTests
         var agtype = new Agtype($"[{vertex}]");
         var list = agtype.GetList();
         Assert.Single(list);
-        var parsed = Assert.IsType<Vertex>(list[0]);
+        var parsed = Assert.IsType<Vertex<Dictionary<string, object>>>(list[0]);
         Assert.Equal(vertex.Id, parsed.Id);
         Assert.Equal(vertex.Label, parsed.Label);
         Assert.Equal(vertex.Properties, parsed.Properties);
