@@ -7,9 +7,9 @@ namespace Npgsql.Age.Types
 {
     public record Path
     {
-        internal const string FOOTER = "::path";
+        public const string FOOTER = "::path";
 
-        public IReadOnlyList<Entity<Dictionary<string, object>>> Segments { get; init; }
+        public IReadOnlyList<Entity<Dictionary<string, object>>> Segments { get; private init; }
 
         /// <summary>
         /// The length of the path.

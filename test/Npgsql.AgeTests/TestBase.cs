@@ -16,7 +16,7 @@ public class TestBase
 
     private static async Task<Version> GetAgeVersionAsync()
     {
-        await using var conn = await new NpgsqlDataSourceBuilder(
+        await using var dataSource = new NpgsqlDataSourceBuilder(
             new NpgsqlConnectionStringBuilder(
                 new ConfigurationBuilder()
                     .SetBasePath(AppContext.BaseDirectory)
@@ -25,7 +25,8 @@ public class TestBase
                     .GetConnectionString("AgeConnectionString")
                     ?? throw new ArgumentNullException("AgeConnectionString")
             ) { SearchPath = "ag_catalog, \"$user\", public" }.ConnectionString
-        ).Build().OpenConnectionAsync();
+        ).Build();
+        await using var conn = await dataSource.OpenConnectionAsync();
         await using var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT extversion FROM pg_extension WHERE extname = 'age'";
         var versionStr = (await cmd.ExecuteScalarAsync())?.ToString() ?? "1.5.0";

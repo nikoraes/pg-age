@@ -31,7 +31,7 @@ namespace Npgsql.Age.Types
             _value = value;
         }
 
-        internal Agtype(string? utf8String) : this(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(utf8String ?? throw new ArgumentNullException())))
+        public Agtype(string value) : this(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(value ?? throw new ArgumentNullException(nameof(value)))))
         {
         }
 
@@ -290,7 +290,7 @@ namespace Npgsql.Age.Types
         /// Return the agtype value as a path containing vertices and edges.
         /// </summary>
         /// <returns>
-        /// A <see cref="System.IO.Path"/>.
+        /// A <see cref="Npgsql.Age.Types.Path"/>.
         /// </returns>
         /// <exception cref="FormatException">
         /// Thrown when the agtype cannot be converted to a path.
@@ -336,18 +336,18 @@ namespace Npgsql.Age.Types
         /// Paths (which also start with <c>[</c>) are not considered arrays because their
         /// string representation ends with the <c>::path</c> footer rather than <c>]</c>.
         /// </remarks>
-        public bool IsArray => _value.FirstSpan[0] == (byte)'[' && GetLastByte() == (byte)']';
+        public bool IsArray => _value.Length > 0 && _value.FirstSpan[0] == (byte)'[' && GetLastByte() == (byte)']';
 
         /// <summary>
         /// Returns <see langword="true"/> if the agtype is a plain JSON object (map).
         /// </summary>
-        public bool IsMap => _value.FirstSpan[0] == (byte)'{' && GetLastByte() == (byte)'}' && !IsVertex && !IsEdge;
+        public bool IsMap => _value.Length > 0 && _value.FirstSpan[0] == (byte)'{' && GetLastByte() == (byte)'}' && !IsVertex && !IsEdge;
 
         /// <summary>
         /// Returns <see langword="true"/> if the raw agtype value is a JSON string
         /// (enclosed in double quotes).
         /// </summary>
-        internal bool IsJsonString => _value.FirstSpan[0] == (byte)'"' && GetLastByte() == (byte)'"';
+        internal bool IsJsonString => _value.Length > 0 && _value.FirstSpan[0] == (byte)'"' && GetLastByte() == (byte)'"';
 
         /// <summary>
         /// Returns the agtype map as a <see cref="Dictionary{TKey, TValue}"/>.

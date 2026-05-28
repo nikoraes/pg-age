@@ -15,7 +15,7 @@ namespace Npgsql.Age.Types
     public record Vertex(GraphId Id, string Label, Dictionary<string, object> Properties)
     : Vertex<Dictionary<string, object>>(Id, Label, Properties)
     {
-        internal const string FOOTER = "::vertex";
+        public const string FOOTER = "::vertex";
 
         public override string ToString()
         {

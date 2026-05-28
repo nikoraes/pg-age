@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -20,7 +21,7 @@ namespace Npgsql.Age.Internal.JsonConverters
 
         public override void Write(Utf8JsonWriter writer, decimal value, JsonSerializerOptions options)
         {
-            writer.WriteRawValue(value.ToString() + "::numeric", true);
+            writer.WriteRawValue(value.ToString(CultureInfo.InvariantCulture) + "::numeric", true);
         }
     }
 }

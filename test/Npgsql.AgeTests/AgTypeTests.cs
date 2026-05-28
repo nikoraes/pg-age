@@ -306,7 +306,7 @@ public class AgTypeTests
             Label: "Edge_label",
             Properties: []
         );
-        var agtype = new Agtype($"[{vertices[0]}, {edge}, {vertices[1]}]{Age.Types.Path.FOOTER}");
+        var agtype = new Agtype($"[{vertices[0]}, {edge}, {vertices[1]}]{Npgsql.Age.Types.Path.FOOTER}");
         var path = agtype.GetPath();
 
         Assert.Equal(@"[{""id"":0,""label"":""Label_name_1"",""properties"":{""i"":0}}::vertex,{""start_id"":0,""end_id"":2,""id"":2,""label"":""Edge_label"",""properties"":{}}::edge,{""id"":2,""label"":""Label_name_1"",""properties"":{}}::vertex]::path", path.ToString());
