@@ -1,77 +1,26 @@
-﻿using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
-using System.Text.Json;
+﻿using Npgsql.Age.Internal.JsonConverters;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace Npgsql.Age.Types
 {
-    public struct Edge
+    public record Edge<T>(GraphId Id, [property: JsonPropertyName("start_id")] GraphId StartId, [property: JsonPropertyName("end_id")] GraphId EndId, string Label, T Properties)
+    : Entity<T>(Id, Label, Properties)
     {
-        /// <summary>
-        /// Footer added to the end of every agtype edge.
-        /// </summary>
+        public override string ToString()
+        {
+            return SerializerOptions.Serialize(this);
+        }
+    }
+
+    public record Edge(GraphId Id, GraphId StartId, GraphId EndId, string Label, Dictionary<string, object> Properties)
+    : Edge<Dictionary<string, object>>(Id, StartId, EndId, Label, Properties)
+    {
         public const string FOOTER = "::edge";
 
-        /// <summary>
-        /// Edge's unique identifier.
-        /// </summary>
-        public GraphId Id { get; set; }
-
-        /// <summary>
-        /// Identifier of the edge's start <see cref="Vertex"/>.
-        /// </summary>
-
-        [JsonPropertyName("start_id")]
-        public GraphId StartId { get; set; }
-
-        /// <summary>
-        /// Identifier of the edge's end <see cref="Vertex"/>.
-        /// </summary>
-        [JsonPropertyName("end_id")]
-        public GraphId EndId { get; set; }
-
-        /// <summary>
-        /// Label.
-        /// </summary>
-        public string Label { get; set; }
-
-        /// <summary>
-        /// Other properties of the edge.
-        /// </summary>
-        public Dictionary<string, object?> Properties { get; set; }
-
-        public override readonly string ToString()
+        public override string ToString()
         {
-            string serializedProperties = JsonSerializer.Serialize(Properties);
-            string result =
-                $@"{{""id"": {Id.Value}, ""label"": ""{Label}"", ""end_id"": {EndId.Value}, ""start_id"": {StartId.Value}, ""properties"": {serializedProperties}}}::edge";
-
-            return result;
-        }
-
-        public override readonly bool Equals([NotNullWhen(true)] object? obj)
-        {
-            if (obj is null || obj is not Edge)
-                return false;
-
-            var input = (Edge)obj;
-
-            return Id == input.Id;
-        }
-
-        public override readonly int GetHashCode()
-        {
-            return Id.GetHashCode();
-        }
-
-        public static bool operator ==(Edge left, Edge right)
-        {
-            return left.Equals(right);
-        }
-
-        public static bool operator !=(Edge left, Edge right)
-        {
-            return !left.Equals(right);
+            return SerializerOptions.Serialize(this);
         }
     }
 }

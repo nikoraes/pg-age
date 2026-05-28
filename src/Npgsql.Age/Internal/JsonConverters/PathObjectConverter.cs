@@ -1,54 +1,64 @@
-﻿using System;
+﻿using Npgsql.Age.Types;
+using System;
+using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Npgsql.Age.Types;
 
 namespace Npgsql.Age.Internal.JsonConverters
 {
     /// <summary>
-    /// A custom converter to convert JSON objects to vertices and edges in a path and
-    /// vice versa.
+    /// A custom converter to properly serialize a JSON path.
     /// </summary>
-    internal class PathObjectConverter : JsonConverter<object>
+    internal class PathObjectConverter : JsonConverter<Path>
     {
-        private int _counter = 0;
-
-        public override object? Read(
-            ref Utf8JsonReader reader,
-            Type typeToConvert,
-            JsonSerializerOptions options
-        )
+        public override Path Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {
-            /*
-             * Every path consists of vertices and edges. It is certain that
-             * the first and last elements of a path are vertices. Also, it is
-             * certain that an edge exists between two contiguous vertices.
-             * Therefore, a path will look like this:
-             * path = v -> e -> v ->...-> v -> e -> v.
-             *
-             * Because of this, if we use a zero-based counter, we can be sure that
-             * all vertices will fall on even numbers and edges will fall on odd numbers.
-             */
+            if (reader.TokenType != JsonTokenType.StartObject)
+                throw new JsonException();
 
-            string json = JsonDocument.ParseValue(ref reader).RootElement.GetRawText();
-            object? result;
+            var segments = new List<Entity<Dictionary<string, object>>>();
+            while (reader.Read())
+            {
+                if (reader.TokenType == JsonTokenType.EndObject)
+                    break;
 
-            if (_counter % 2 == 0)
-                result = JsonSerializer.Deserialize<Vertex>(json, SerializerOptions.Default);
-            else
-                result = JsonSerializer.Deserialize<Edge>(json, SerializerOptions.Default);
+                if (reader.TokenType != JsonTokenType.PropertyName)
+                    throw new JsonException();
 
-            _counter++;
-            return result;
+                var propertyName = reader.GetString();
+                if (propertyName == "$type")
+                {
+                    reader.Skip();
+                }
+                else if (propertyName == "segments")
+                {
+                    reader.Read();
+                    if (reader.TokenType != JsonTokenType.StartArray)
+                        throw new JsonException();
+
+                    while (reader.Read())
+                    {
+                        if (reader.TokenType == JsonTokenType.EndArray)
+                            break;
+
+                        var segment = JsonSerializer.Deserialize<Entity<Dictionary<string, object>>>(ref reader, options);
+                        if (segment != null)
+                            segments.Add(segment);
+                    }
+                }
+                else
+                {
+                    reader.Skip();
+                }
+            }
+
+            return new Path(segments);
         }
 
-        public override void Write(
-            Utf8JsonWriter writer,
-            object value,
-            JsonSerializerOptions options
-        )
+        public override void Write(Utf8JsonWriter writer, Path value, JsonSerializerOptions options)
         {
-            JsonSerializer.Serialize(writer, value, value.GetType(), options);
+            var code = JsonSerializer.Serialize(value.Segments, SerializerOptions.WriteOptions);
+            writer.WriteRawValue(code + Path.FOOTER, true);
         }
     }
 }
