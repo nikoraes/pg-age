@@ -89,9 +89,10 @@ namespace Npgsql.Age.Internal
         {
             writer.WriteByte(1);
 
-            var stream = writer.GetStream(allowMixedIO: true);
-            await value.WriteToAsync(stream, cancellationToken);
-            stream.Dispose();
+            await using (var stream = writer.GetStream(allowMixedIO: true))
+            {
+                await value.WriteToAsync(stream, cancellationToken);
+            }
         }
     }
 #pragma warning restore NPG9001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
