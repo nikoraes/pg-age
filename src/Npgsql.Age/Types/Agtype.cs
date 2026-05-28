@@ -5,6 +5,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -321,6 +323,14 @@ namespace Npgsql.Age.Types
             foreach (var memory in _value)
             {
                 stream.Write(memory.Span);
+            }
+        }
+
+        public async Task WriteToAsync(Stream stream, CancellationToken cancellationToken = default)
+        {
+            foreach (var memory in _value)
+            {
+                await stream.WriteAsync(memory, cancellationToken);
             }
         }
 
