@@ -1,8 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Text.Json;
 using Npgsql.Age.Internal.JsonConverters;
+using System;
+using System.Buffers;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace Npgsql.Age.Types
 {
@@ -11,15 +15,24 @@ namespace Npgsql.Age.Types
     /// </summary>
     public readonly struct Agtype
     {
-        private readonly string _value;
+        private readonly ReadOnlySequence<byte> _value;
+
+        /// <summary>
+        /// The size of the structure in bytes
+        /// </summary>
+        public long Size => _value.Length;
 
         /// <summary>
         /// Initialises a new instance of <see cref="Agtype"/>.
         /// </summary>
         /// <param name="value"></param>
-        public Agtype(string value)
+        internal Agtype(ReadOnlySequence<byte> value)
         {
-            _value = value.Trim('\u0001');
+            _value = value;
+        }
+
+        internal Agtype(string? utf8String) : this(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(utf8String ?? throw new ArgumentNullException())))
+        {
         }
 
         #region Public methods
@@ -29,7 +42,7 @@ namespace Npgsql.Age.Types
         /// <returns>
         /// String value.
         /// </returns>
-        public string GetString() => _value.Trim('"');
+        public string GetString() => Get<string>();
 
         /// <summary>
         /// Return the agtype value as a boolean.
@@ -40,7 +53,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public bool GetBoolean() => bool.Parse(_value);
+        public bool GetBoolean() => Get<bool>();
 
         /// <summary>
         /// Return the agtype value as a float.
@@ -51,17 +64,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public float GetFloat()
-        {
-            if (_value.Equals("-Infinity", StringComparison.OrdinalIgnoreCase))
-                return float.NegativeInfinity;
-            if (_value.Equals("Infinity", StringComparison.OrdinalIgnoreCase))
-                return float.PositiveInfinity;
-            if (_value.Equals("NaN", StringComparison.OrdinalIgnoreCase))
-                return float.NaN;
-
-            return float.Parse(_value, CultureInfo.InvariantCulture);
-        }
+        public float GetFloat() => Get<float>();
 
         /// <summary>
         /// Return the agtype value as a double.
@@ -72,17 +75,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public double GetDouble()
-        {
-            if (_value.Equals("-Infinity", StringComparison.OrdinalIgnoreCase))
-                return double.NegativeInfinity;
-            if (_value.Equals("Infinity", StringComparison.OrdinalIgnoreCase))
-                return double.PositiveInfinity;
-            if (_value.Equals("NaN", StringComparison.OrdinalIgnoreCase))
-                return double.NaN;
-
-            return double.Parse(_value, CultureInfo.InvariantCulture);
-        }
+        public double GetDouble() => Get<double>();
 
         /// <summary>
         /// Return the agtype value as a byte.
@@ -93,7 +86,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public byte GetByte() => byte.Parse(_value);
+        public byte GetByte() => Get<byte>();
 
         /// <summary>
         /// Return the agtype value as an sbyte.
@@ -104,7 +97,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public sbyte GetSByte() => sbyte.Parse(_value);
+        public sbyte GetSByte() => Get<sbyte>();
 
         /// <summary>
         /// Return the agtype value as a short.
@@ -115,7 +108,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public short GetInt16() => short.Parse(_value);
+        public short GetInt16() => Get<short>();
 
         /// <summary>
         /// Return the agtype value as a ushort.
@@ -126,7 +119,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public ushort GetUInt16() => ushort.Parse(_value);
+        public ushort GetUInt16() => Get<ushort>();
 
         /// <summary>
         /// Return the agtype value as an integer.
@@ -137,7 +130,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public int GetInt32() => int.Parse(_value);
+        public int GetInt32() => Get<int>();
 
         /// <summary>
         /// Return the agtype value as a uint.
@@ -148,7 +141,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public uint GetUInt32() => uint.Parse(_value);
+        public uint GetUInt32() => Get<uint>();
 
         /// <summary>
         /// Return the agtype value as a long.
@@ -159,7 +152,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public long GetInt64() => long.Parse(_value);
+        public long GetInt64() => Get<long>();
 
         /// <summary>
         /// Return the agtype value as a ulong.
@@ -170,7 +163,7 @@ namespace Npgsql.Age.Types
         /// <exception cref="FormatException">
         /// Thrown when the value of the agtype cannot be correctly parsed.
         /// </exception>
-        public ulong GetUInt64() => ulong.Parse(_value);
+        public ulong GetUInt64() => Get<ulong>();
 
         /// <summary>
         /// Return the agtype value as a decimal.
@@ -178,7 +171,7 @@ namespace Npgsql.Age.Types
         /// <returns>
         /// Decimal value.
         /// </returns>
-        public decimal GetDecimal() => decimal.Parse(_value);
+        public decimal GetDecimal() => Get<decimal>();
 
         /// <summary>
         /// Return the agtype value as a list.
@@ -188,133 +181,10 @@ namespace Npgsql.Age.Types
         /// The list may contain mixed data types.
         /// Example: [1, 2, "string", null].
         /// </remarks>
-        ///
-        /// <param name="readFloatingPointLiterals">
-        /// Indicates if the reserved floating values "-Infinity", "Infinity",
-        /// and "NaN" should be parsed to <see cref="double.NegativeInfinity"/>,
-        /// <see cref="double.PositiveInfinity"/>, and <see cref="double.NaN"/>
-        /// respectively.
-        /// <para>
-        /// If <see langword="false"/>, the reserved floating values are parsed as
-        /// strings.
-        /// </para>
-        /// </param>
-        ///
         /// <returns>
         /// List of objects.
         /// </returns>
-        public List<object?> GetList(bool readFloatingPointLiterals = true)
-        {
-            var result = new List<object?>();
-            foreach (var element in GetArray())
-            {
-                if (element.IsNull)
-                {
-                    result.Add(null);
-                }
-                else if (element.IsVertex)
-                {
-                    result.Add(element.GetVertex());
-                }
-                else if (element.IsEdge)
-                {
-                    result.Add(element.GetEdge());
-                }
-                else if (element.IsMap)
-                {
-                    result.Add(element.GetMap());
-                }
-                else if (element.IsArray)
-                {
-                    result.Add(element.GetList(readFloatingPointLiterals));
-                }
-                else if (element.IsJsonString)
-                {
-                    var str = element.GetString();
-                    if (readFloatingPointLiterals)
-                    {
-                        if (str.Equals("-Infinity", StringComparison.OrdinalIgnoreCase))
-                            result.Add(double.NegativeInfinity);
-                        else if (str.Equals("Infinity", StringComparison.OrdinalIgnoreCase))
-                            result.Add(double.PositiveInfinity);
-                        else if (str.Equals("NaN", StringComparison.OrdinalIgnoreCase))
-                            result.Add(double.NaN);
-                        else
-                            result.Add(str);
-                    }
-                    else
-                    {
-                        result.Add(str);
-                    }
-                }
-                else
-                {
-                    var str = element.GetString();
-                    if (readFloatingPointLiterals)
-                    {
-                        if (str.Equals("-Infinity", StringComparison.OrdinalIgnoreCase))
-                        {
-                            result.Add(double.NegativeInfinity);
-                            continue;
-                        }
-                        if (str.Equals("Infinity", StringComparison.OrdinalIgnoreCase))
-                        {
-                            result.Add(double.PositiveInfinity);
-                            continue;
-                        }
-                        if (str.Equals("NaN", StringComparison.OrdinalIgnoreCase))
-                        {
-                            result.Add(double.NaN);
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        if (
-                            str.Equals("-Infinity", StringComparison.OrdinalIgnoreCase)
-                            || str.Equals("Infinity", StringComparison.OrdinalIgnoreCase)
-                            || str.Equals("NaN", StringComparison.OrdinalIgnoreCase)
-                        )
-                        {
-                            result.Add(str);
-                            continue;
-                        }
-                    }
-                    if (
-                        int.TryParse(
-                            str,
-                            NumberStyles.Integer,
-                            CultureInfo.InvariantCulture,
-                            out int intVal
-                        )
-                    )
-                        result.Add(intVal);
-                    else if (
-                        long.TryParse(
-                            str,
-                            NumberStyles.Integer,
-                            CultureInfo.InvariantCulture,
-                            out long longVal
-                        )
-                    )
-                        result.Add(longVal);
-                    else if (
-                        double.TryParse(
-                            str,
-                            NumberStyles.Float,
-                            CultureInfo.InvariantCulture,
-                            out double doubleVal
-                        )
-                    )
-                        result.Add(doubleVal);
-                    else if (bool.TryParse(str, out bool boolVal))
-                        result.Add(boolVal);
-                    else
-                        result.Add(str);
-                }
-            }
-            return result;
-        }
+        public List<object?> GetList() => Get<List<object?>>();
 
         /// <summary>
         /// Return true if the agtype is a vertex.
@@ -322,7 +192,26 @@ namespace Npgsql.Age.Types
         /// <returns>
         /// Boolean value.
         /// </returns>
-        public bool IsVertex => _value.EndsWith(Vertex.FOOTER);
+        public bool IsVertex => EndsWith(Vertex.FOOTER);
+
+        /// <summary>
+        /// Return the agtype value as a <see cref="Vertex"/>.
+        /// </summary>
+        /// <returns>
+        /// Vertex.
+        /// </returns>
+        /// <exception cref="FormatException">
+        /// Thrown when the agtype cannot be converted to a vertex.
+        /// </exception>
+        public Vertex<T> GetVertex<T>()
+        {
+            if (!IsVertex)
+                throw new FormatException(
+                    "Cannot convert agtype to vertex. Agtype is not a valid vertex."
+                );
+
+            return Get<Vertex<T>>();
+        }
 
         /// <summary>
         /// Return the agtype value as a <see cref="Vertex"/>.
@@ -335,16 +224,12 @@ namespace Npgsql.Age.Types
         /// </exception>
         public Vertex GetVertex()
         {
-            bool isValidVertex = _value.EndsWith(Vertex.FOOTER);
-            if (!isValidVertex)
+            if (!IsVertex)
                 throw new FormatException(
                     "Cannot convert agtype to vertex. Agtype is not a valid vertex."
                 );
 
-            var json = _value.Replace(Vertex.FOOTER, "");
-            var vertex = JsonSerializer.Deserialize<Vertex>(json, SerializerOptions.Default);
-
-            return vertex!;
+            return Get<Vertex>();
         }
 
         /// <summary>
@@ -353,7 +238,26 @@ namespace Npgsql.Age.Types
         /// <returns>
         /// Boolean value.
         /// </returns>
-        public bool IsEdge => _value.EndsWith(Edge.FOOTER);
+        public bool IsEdge => EndsWith(Edge.FOOTER);
+
+        /// <summary>
+        /// Return the agtype value as a <see cref="Edge"/>.
+        /// </summary>
+        /// <returns>
+        /// Edge.
+        /// </returns>
+        /// <exception cref="FormatException">
+        /// Thrown when the agtype cannot be converted to an edge.
+        /// </exception>
+        public Edge<T> GetEdge<T>()
+        {
+            if (!IsEdge)
+                throw new FormatException(
+                    "Cannot convert agtype to edge. Agtype is not a valid edge."
+                );
+
+            return Get<Edge<T>>();
+        }
 
         /// <summary>
         /// Return the agtype value as a <see cref="Edge"/>.
@@ -366,16 +270,12 @@ namespace Npgsql.Age.Types
         /// </exception>
         public Edge GetEdge()
         {
-            bool isValidEdge = _value.EndsWith(Edge.FOOTER);
-            if (!isValidEdge)
+            if (!IsEdge)
                 throw new FormatException(
                     "Cannot convert agtype to edge. Agtype is not a valid edge."
                 );
 
-            var json = _value.Replace(Edge.FOOTER, "");
-            var edge = JsonSerializer.Deserialize<Edge>(json, SerializerOptions.Default);
-
-            return edge!;
+            return Get<Edge>();
         }
 
         /// <summary>
@@ -384,53 +284,50 @@ namespace Npgsql.Age.Types
         /// <returns>
         /// Boolean value.
         /// </returns>
-        public bool IsPath => _value.EndsWith(Path.FOOTER);
+        public bool IsPath => EndsWith(Path.FOOTER);
 
         /// <summary>
         /// Return the agtype value as a path containing vertices and edges.
         /// </summary>
         /// <returns>
-        /// A <see cref="Path"/>.
+        /// A <see cref="System.IO.Path"/>.
         /// </returns>
         /// <exception cref="FormatException">
         /// Thrown when the agtype cannot be converted to a path.
         /// </exception>
         public Path GetPath()
         {
-            bool isValidEdge = _value.EndsWith(Path.FOOTER);
-            if (!isValidEdge)
+            if (!IsPath)
                 throw new FormatException(
                     "Cannot convert agtype to path. Agtype is not a valid path."
                 );
 
-            try
-            {
-                var json = _value
-                    .Replace(Vertex.FOOTER, "")
-                    .Replace(Path.FOOTER, "")
-                    .Replace(Edge.FOOTER, "");
-                var path = JsonSerializer.Deserialize<object[]>(
-                    json,
-                    SerializerOptions.PathSerializer
-                );
+            return Get<Path>();
+        }
 
-                return path is null
-                    ? throw new FormatException("Path cannot be null.")
-                    : new Path(path);
-            }
-            catch (JsonException e)
+        public T Get<T>()
+        {
+            using var jsonStream = ToJson(_value);
+            return JsonSerializer.Deserialize<T>(jsonStream, SerializerOptions.ReadOptions)!;
+        }
+
+        public override string ToString()
+        {
+            return Encoding.UTF8.GetString(_value);
+        }
+
+        public void WriteTo(Stream stream)
+        {
+            foreach (var memory in _value)
             {
-                throw new FormatException(
-                    "Path may be in the wrong format and cannot be parsed correctly.",
-                    e
-                );
+                stream.Write(memory.Span);
             }
         }
 
         /// <summary>
         /// Returns <see langword="true"/> if the agtype represents a null value.
         /// </summary>
-        public bool IsNull => _value == "null";
+        public bool IsNull => _value.Length == 4 && _value.FirstSpan[0] == (byte)'n' && GetLastByte() == (byte)'l';
 
         /// <summary>
         /// Returns <see langword="true"/> if the agtype is an array.
@@ -439,90 +336,18 @@ namespace Npgsql.Age.Types
         /// Paths (which also start with <c>[</c>) are not considered arrays because their
         /// string representation ends with the <c>::path</c> footer rather than <c>]</c>.
         /// </remarks>
-        public bool IsArray => _value.StartsWith('[') && _value.EndsWith(']');
+        public bool IsArray => _value.FirstSpan[0] == (byte)'[' && GetLastByte() == (byte)']';
 
         /// <summary>
         /// Returns <see langword="true"/> if the agtype is a plain JSON object (map).
         /// </summary>
-        public bool IsMap => _value.StartsWith('{') && _value.EndsWith('}') && !IsVertex && !IsEdge;
+        public bool IsMap => _value.FirstSpan[0] == (byte)'{' && GetLastByte() == (byte)'}' && !IsVertex && !IsEdge;
 
         /// <summary>
         /// Returns <see langword="true"/> if the raw agtype value is a JSON string
         /// (enclosed in double quotes).
         /// </summary>
-        internal bool IsJsonString => _value.StartsWith('"') && _value.EndsWith('"');
-
-        /// <summary>
-        /// Returns the elements of the agtype array as individual <see cref="Agtype"/> values,
-        /// preserving type annotations so that <see cref="IsVertex"/>, <see cref="IsEdge"/>,
-        /// and other type-check properties work correctly on each element.
-        /// </summary>
-        /// <exception cref="FormatException">
-        /// Thrown when the agtype is not an array.
-        /// </exception>
-        public IEnumerable<Agtype> GetArray()
-        {
-            if (!IsArray)
-                throw new FormatException(
-                    "Cannot convert agtype to array. Agtype is not a valid array."
-                );
-
-            return GetArrayCore();
-        }
-
-        private IEnumerable<Agtype> GetArrayCore()
-        {
-            // Walk the raw string tracking JSON nesting depth and string literals,
-            // splitting on top-level commas. This preserves ::vertex / ::edge suffixes
-            // on each element so the returned Agtype values keep their type information.
-            int depth = 0;
-            bool inString = false;
-            int start = 1; // skip opening '['
-            int end = _value.Length - 1; // position of closing ']'
-
-            for (int i = start; i < end; i++)
-            {
-                char c = _value[i];
-                if (inString)
-                {
-                    if (c == '\\')
-                        i++; // skip escaped character
-                    else if (c == '"')
-                        inString = false;
-                }
-                else
-                {
-                    switch (c)
-                    {
-                        case '"':
-                            inString = true;
-                            break;
-                        case '{':
-                        case '[':
-                            depth++;
-                            break;
-                        case '}':
-                        case ']':
-                            depth--;
-                            break;
-                        case ',' when depth == 0:
-                            var item = _value.Substring(start, i - start).Trim();
-                            if (item.Length > 0)
-                                yield return new Agtype(item);
-                            start = i + 1;
-                            break;
-                    }
-                }
-            }
-
-            // Yield the last (or only) item
-            if (end > start)
-            {
-                var lastItem = _value.Substring(start, end - start).Trim();
-                if (lastItem.Length > 0)
-                    yield return new Agtype(lastItem);
-            }
-        }
+        internal bool IsJsonString => _value.FirstSpan[0] == (byte)'"' && GetLastByte() == (byte)'"';
 
         /// <summary>
         /// Returns the agtype map as a <see cref="Dictionary{TKey, TValue}"/>.
@@ -537,10 +362,7 @@ namespace Npgsql.Age.Types
                     "Cannot convert agtype to map. Agtype is not a valid map."
                 );
 
-            return JsonSerializer.Deserialize<Dictionary<string, object?>>(
-                    _value,
-                    SerializerOptions.Default
-                ) ?? throw new FormatException("Cannot convert agtype to map.");
+            return Get<Dictionary<string, object?>>();
         }
         #endregion
 
@@ -578,5 +400,185 @@ namespace Npgsql.Age.Types
         public static explicit operator Dictionary<string, object?>(Agtype agtype) =>
             agtype.GetMap();
         #endregion
+
+        private byte GetLastByte()
+        {
+            if (_value.IsSingleSegment)
+                return _value.FirstSpan[^1];
+            return _value.Slice(_value.Length - 1, 1).FirstSpan[0];
+        }
+
+        private bool EndsWith(string suffix)
+        {
+            var byteLength = Encoding.UTF8.GetByteCount(suffix);
+            if (_value.Length < byteLength)
+                return false;
+            var actualSuffix = Encoding.UTF8.GetString(_value.Slice(_value.Length - byteLength));
+            return actualSuffix == suffix;
+        }
+
+        /// <summary>
+        /// Create a new object by serializing the data to properly handle
+        /// number literals, strings, etc.
+        /// </summary>
+        /// <param name="value">The value to serialize</param>
+        /// <returns>A new instance of <see cref="Agtype"/></returns>
+        public static Agtype Create(object value)
+        {
+            var ms = new MemoryStream();
+            JsonSerializer.Serialize(ms, value, value.GetType(), SerializerOptions.WriteOptions);
+            return new Agtype(new ReadOnlySequence<byte>(ms.ToArray()));
+        }
+
+        /// <summary>
+        /// Converts the Agtype format adhering to the <a href="https://github.com/apache/age/blob/master/drivers/Agtype.g4#L64">grammar</a>
+        /// to valid JSON. Special numbers are converted to strings that contain the null character
+        /// for easier identification. Special data types (edges, vertices, and paths) are converted
+        /// to objects with a <c>$type</c> property.
+        /// </summary>
+        /// <param name="value">Binary data</param>
+        /// <returns>JSON stream</returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        private static Stream ToJson(ReadOnlySequence<byte> value)
+        {
+            // To avoid unnecessary allocations, byte slices are used wherever feasible.
+            var reader = new SequenceReader<byte>(value);
+            var depthChanges = new List<int>();
+            var depth = 0;
+            var segments = new List<ReadOnlySequence<byte>>();
+
+            while (reader.TryPeek(out var next))
+            {
+                if (char.IsWhiteSpace((char)next))
+                {
+                    reader.Advance(1);
+                    continue;
+                }
+
+                var start = reader.Position;
+                if (next == '"')
+                {
+                    reader.Advance(1);
+                    if (!reader.TryReadTo(out ReadOnlySequence<byte> _, (byte)'"', (byte)'\\', true))
+                        throw new InvalidOperationException();
+                    segments.Add(reader.Sequence.Slice(start, reader.Position));
+                }
+                else if (next == ':' || next == ',')
+                {
+                    reader.Advance(1);
+                    segments.Add(reader.Sequence.Slice(start, reader.Position));
+                }
+                else if (next == '{' || next == '[')
+                {
+                    depth++;
+                    depthChanges.Add(depth);
+                    reader.Advance(1);
+                    segments.Add(reader.Sequence.Slice(start, reader.Position));
+                }
+                else if (next == '}' || next == ']')
+                {
+                    if (reader.TryPeek(1, out var colon1) && colon1 == ':'
+                      && reader.TryPeek(2, out var colon2) && colon2 == ':')
+                    {
+                        reader.Advance(3);
+                        start = reader.Position;
+                        var i = 0;
+                        while (reader.TryPeek(i, out var c) && char.IsLetter((char)c))
+                            i++;
+                        reader.Advance(i);
+                        var kind = Encoding.UTF8.GetString(reader.Sequence.Slice(start, reader.Position));
+                        var index = depthChanges.LastIndexOf(depth);
+                        if (index == -1)
+                            throw new InvalidOperationException($"Unexpected depth change for closing bracket at position {reader.Position}");
+
+                        var prefix = $@"{{""$type"":""{kind}"",";
+                        if (next == ']')
+                            prefix += $@"""segments"":[";
+                        segments[index] = new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(prefix));
+
+                        var suffix = next == ']' ? new[] { (byte)']', (byte)'}' } : new[] { (byte)'}' };
+                        segments.Add(new ReadOnlySequence<byte>(suffix));
+                    }
+                    else
+                    {
+                        reader.Advance(1);
+                        segments.Add(reader.Sequence.Slice(start, reader.Position));
+                    }
+                    depthChanges.Add(depth);
+                    depth--;
+                }
+                else
+                {
+                    var i = 0;
+                    var hasDigits = false;
+                    var hasCapital = false;
+                    var isColon = false;
+                    while (reader.TryPeek(i, out var c))
+                    {
+                        isColon = c == ':' && reader.TryPeek(i + 1, out var c1) && c1 == ':';
+                        if (char.IsWhiteSpace((char)c) || c == '}' || c == ']' || c == ',' || isColon)
+                            break;
+
+                        hasCapital = hasCapital || char.IsUpper((char)c);
+                        hasDigits = hasDigits || char.IsDigit((char)c);
+                        i++;
+                    }
+
+                    if (isColon)
+                    {
+                        reader.Advance(i);
+                        var number = Encoding.UTF8.GetString(reader.Sequence.Slice(start, reader.Position));
+                        reader.Advance(2);
+                        start = reader.Position;
+                        i = 0;
+                        while (reader.TryPeek(i, out var c) && char.IsLetter((char)c))
+                            i++;
+                        reader.Advance(i);
+                        var kind = Encoding.UTF8.GetString(reader.Sequence.Slice(start, reader.Position));
+                        segments.Add(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes($@"""{number}\u0000{kind}""")));
+                    }
+                    else if (hasCapital && !hasDigits)
+                    {
+                        reader.Advance(i);
+                        var text = Encoding.UTF8.GetString(reader.Sequence.Slice(start, reader.Position));
+                        if (string.Equals(text, "NaN", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(text, "Infinity", StringComparison.OrdinalIgnoreCase)
+                          || string.Equals(text, "-Infinity", StringComparison.OrdinalIgnoreCase))
+                        {
+                            segments.Add(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes($@"""\u0000{text}""")));
+                        }
+                        else if (string.Equals(text, "true", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(text, "false", StringComparison.OrdinalIgnoreCase)
+                            || string.Equals(text, "null", StringComparison.OrdinalIgnoreCase))
+                        {
+                            segments.Add(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(text.ToLowerInvariant())));
+                        }
+                        else
+                        {
+                            segments.Add(reader.Sequence.Slice(start, reader.Position));
+                        }
+                    }
+                    else
+                    {
+                        reader.Advance(i);
+                        segments.Add(reader.Sequence.Slice(start, reader.Position));
+                    }
+                }
+
+                if (depthChanges.Count < segments.Count)
+                    depthChanges.Add(-1);
+            }
+
+            var ms = new MemoryStream(segments.Sum(s => (int)s.Length));
+            foreach (var segment in segments)
+            {
+                foreach (var memory in segment)
+                {
+                    ms.Write(memory.Span);
+                }
+            }
+            ms.Position = 0;
+            return ms;
+        }
     }
 }

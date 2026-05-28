@@ -1,35 +1,15 @@
-﻿using System;
-using System.ComponentModel.Design;
-using System.Diagnostics.Metrics;
-using System.Text.Json;
+﻿using Npgsql.Age.Internal.JsonConverters;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Npgsql.Age.Types
 {
-    /// <summary>
-    /// Graph path.
-    /// </summary>
-    public readonly struct Path
+    public record Path
     {
-        /// <summary>
-        /// Footer added to the end of every agtype path.
-        /// </summary>
-        public const string FOOTER = "::path";
+        internal const string FOOTER = "::path";
 
-        internal Path(object[] path)
-        {
-            CheckPath(path);
-
-            Length = path.Length / 2;
-            Vertices = new Vertex[Length + 1];
-            Edges = new Edge[Length];
-
-            for (int i = 0; i < path.Length - 1; i += 2)
-            {
-                Vertices[i / 2] = (Vertex)path[i];
-                Edges[i / 2] = (Edge)path[i + 1];
-            }
-            Vertices[Length] = (Vertex)path[^1];
-        }
+        public IReadOnlyList<Entity<Dictionary<string, object>>> Segments { get; init; }
 
         /// <summary>
         /// The length of the path.
@@ -37,12 +17,12 @@ namespace Npgsql.Age.Types
         /// <remarks>
         /// Equal to the number of edges.
         /// </remarks>
-        public int Length { get; }
+        public int Length => Segments.Count / 2;
 
         /// <summary>
         /// Vertices in the path (in order).
         /// </summary>
-        public Vertex[] Vertices { get; }
+        public IEnumerable<Vertex> Vertices => Segments.OfType<Vertex>();
 
         /// <summary>
         /// Edges in the path.
@@ -51,22 +31,35 @@ namespace Npgsql.Age.Types
         /// Edge with index 0 is the edge between vertices 0 and 1. Edge 1
         /// connects vertices 1 and 2, and so on.
         /// </remarks>
-        public Edge[] Edges { get; }
+        public IEnumerable<Edge> Edges => Segments.OfType<Edge>();
 
-        private static void CheckPath(object[] path)
+
+        public Path(IReadOnlyList<Entity<Dictionary<string, object>>> segments)
         {
-            for (int i = 0; i < path.Length; i++)
-            {
-                bool shouldBeVertex = i % 2 == 0;
+            CheckPath(segments);
+            Segments = segments;
+        }
 
-                if (shouldBeVertex && path[i].GetType() != typeof(Vertex))
+        public override string ToString()
+        {
+            return SerializerOptions.Serialize(this);
+        }
+
+        private static void CheckPath(IEnumerable<Entity<Dictionary<string, object>>> path)
+        {
+            var i = 0;
+            foreach (var segment in path)
+            {
+                var shouldBeVertex = i % 2 == 0;
+                if (shouldBeVertex && !(segment is Vertex<Dictionary<string, object>>))
                 {
                     throw new FormatException("Invalid path");
                 }
-                if (!shouldBeVertex && path[i].GetType() != typeof(Edge))
+                else if (!shouldBeVertex && !(segment is Edge<Dictionary<string, object>>))
                 {
                     throw new FormatException("Invalid path");
                 }
+                i++;
             }
         }
     }

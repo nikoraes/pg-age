@@ -1,8 +1,6 @@
-﻿using System;
-using System.Buffers;
-using System.Text;
 using Npgsql.Age.Types;
 using Npgsql.Internal;
+using System;
 
 namespace Npgsql.Age.Internal
 {
@@ -20,9 +18,7 @@ namespace Npgsql.Age.Internal
 
         public override Size GetSize(SizeContext context, Agtype value, ref object? writeState)
         {
-            var str = value.GetString();
-            // Add 1 byte for the version number prefix
-            return Encoding.UTF8.GetByteCount(str) + 1;
+            return (int)value.Size + 1;
         }
 
         /// <summary>
@@ -41,10 +37,7 @@ namespace Npgsql.Age.Internal
             }
 
             // Read the remaining text content
-            ReadOnlySequence<byte> textBytes = reader.ReadBytes(reader.CurrentRemaining);
-            string text = Encoding.UTF8.GetString(textBytes.ToArray());
-
-            return new(text);
+            return new Agtype(reader.ReadBytes(reader.CurrentRemaining));
         }
 
         /// <summary>
@@ -58,9 +51,10 @@ namespace Npgsql.Age.Internal
             // Write version number as first byte (version 1)
             writer.WriteByte(1);
 
-            // Write the text content
-            byte[] bytes = Encoding.UTF8.GetBytes(value.GetString());
-            writer.WriteBytes(bytes);
+            using (var stream = writer.GetStream())
+            {
+                value.WriteTo(stream);
+            }
         }
     }
 #pragma warning restore NPG9001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
