@@ -5,10 +5,27 @@ using System.Linq;
 
 namespace Npgsql.Age.Types
 {
+    /// <summary>
+    /// Represents a path returned by Apache AGE, consisting of alternating vertices and edges.
+    /// </summary>
+    /// <remarks>
+    /// A path is a sequence of segments where vertices and edges alternate:
+    /// <c>vertex - edge - vertex - edge - ... - vertex</c>.
+    /// The first and last segments are always vertices.
+    /// </remarks>
     public record Path
     {
+        /// <summary>
+        /// The suffix appended to the JSON representation by Apache AGE to identify this as a path.
+        /// </summary>
         public const string FOOTER = "::path";
 
+        /// <summary>
+        /// The segments of the path, alternating between vertices and edges.
+        /// </summary>
+        /// <remarks>
+        /// Use <see cref="Vertices"/> and <see cref="Edges"/> for typed access.
+        /// </remarks>
         public IReadOnlyList<Entity<Dictionary<string, object>>> Segments { get; private init; }
 
         /// <summary>
@@ -34,12 +51,18 @@ namespace Npgsql.Age.Types
         public IEnumerable<Edge> Edges => Segments.OfType<Edge>();
 
 
+        /// <summary>
+        /// Initialises a new instance of <see cref="Path"/>.
+        /// </summary>
+        /// <param name="segments">The segments of the path, alternating vertex, edge, vertex, etc.</param>
+        /// <exception cref="FormatException">Thrown when the path format is invalid.</exception>
         public Path(IReadOnlyList<Entity<Dictionary<string, object>>> segments)
         {
             CheckPath(segments);
             Segments = segments;
         }
 
+        /// <inheritdoc />
         public override string ToString()
         {
             return SerializerOptions.Serialize(this);

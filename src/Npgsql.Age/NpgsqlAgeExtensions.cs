@@ -41,8 +41,17 @@ namespace Npgsql.Age
         }
     }
 
+    /// <summary>
+    /// Provides extension methods for <see cref="NpgsqlConnection"/> to interact with Apache AGE graphs.
+    /// </summary>
     public static class NpgsqlConnectionAgeExtensions
     {
+        /// <summary>
+        /// Creates an <see cref="NpgsqlCommand"/> to create a new graph.
+        /// </summary>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="graphName">The name of the graph to create.</param>
+        /// <returns>An <see cref="NpgsqlCommand"/> ready for execution.</returns>
         public static NpgsqlCommand CreateGraphCommand(
             this NpgsqlConnection connection,
             string graphName
@@ -54,6 +63,12 @@ namespace Npgsql.Age
             };
         }
 
+        /// <summary>
+        /// Creates an <see cref="NpgsqlCommand"/> to drop an existing graph.
+        /// </summary>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="graphName">The name of the graph to drop.</param>
+        /// <returns>An <see cref="NpgsqlCommand"/> ready for execution.</returns>
         public static NpgsqlCommand DropGraphCommand(
             this NpgsqlConnection connection,
             string graphName
@@ -65,6 +80,12 @@ namespace Npgsql.Age
             };
         }
 
+        /// <summary>
+        /// Creates an <see cref="NpgsqlCommand"/> to check if a graph exists.
+        /// </summary>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="graphName">The name of the graph to check.</param>
+        /// <returns>An <see cref="NpgsqlCommand"/> ready for execution.</returns>
         public static NpgsqlCommand GraphExistsCommand(
             this NpgsqlConnection connection,
             string graphName
@@ -79,6 +100,13 @@ namespace Npgsql.Age
             };
         }
 
+        /// <summary>
+        /// Creates a Cypher command without parameters.
+        /// </summary>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="graphName">The name of the graph.</param>
+        /// <param name="cypher">The Cypher query.</param>
+        /// <returns>An <see cref="NpgsqlCommand"/> ready for execution.</returns>
         public static NpgsqlCommand CreateCypherCommand(
             this NpgsqlConnection connection,
             string graphName,
@@ -163,13 +191,13 @@ namespace Npgsql.Age
         }
 
         /// <summary>
-        /// Creates a Cypher command with parameters passed as a JSON string
+        /// Creates a Cypher command with parameters passed as an <see cref="Agtype"/> map.
         /// </summary>
-        /// <param name="connection">The database connection</param>
-        /// <param name="graphName">The name of the graph</param>
-        /// <param name="cypher">The Cypher query with parameter placeholders (e.g., $name)</param>
-        /// <param name="parametersJson">Agtype map containing parameter names and values</param>
-        /// <returns>An NpgsqlCommand ready for execution</returns>
+        /// <param name="connection">The database connection.</param>
+        /// <param name="graphName">The name of the graph.</param>
+        /// <param name="cypher">The Cypher query with parameter placeholders (e.g., $name).</param>
+        /// <param name="parameters">Agtype map containing parameter names and values.</param>
+        /// <returns>An <see cref="NpgsqlCommand"/> ready for execution.</returns>
         public static NpgsqlCommand CreateCypherCommand(
             this NpgsqlConnection connection,
             string graphName,

@@ -27,12 +27,17 @@ namespace Npgsql.Age.Types
         /// <summary>
         /// Initialises a new instance of <see cref="Agtype"/>.
         /// </summary>
-        /// <param name="value"></param>
+        /// <param name="value">The raw binary representation of the agtype value.</param>
         internal Agtype(ReadOnlySequence<byte> value)
         {
             _value = value;
         }
 
+        /// <summary>
+        /// Initialises a new instance of <see cref="Agtype"/> from a JSON string.
+        /// </summary>
+        /// <param name="value">The JSON string representing the agtype value.</param>
+        /// <exception cref="ArgumentNullException">Thrown when <paramref name="value"/> is <see langword="null"/>.</exception>
         public Agtype(string value) : this(new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(value ?? throw new ArgumentNullException(nameof(value)))))
         {
         }
@@ -307,17 +312,35 @@ namespace Npgsql.Age.Types
             return Get<Path>();
         }
 
+        /// <summary>
+        /// Deserializes the agtype value to the specified type using JSON conversion.
+        /// </summary>
+        /// <typeparam name="T">The type to deserialize to.</typeparam>
+        /// <returns>The deserialized value.</returns>
+        /// <remarks>
+        /// The agtype binary format is first converted to valid JSON, handling special
+        /// number literals (Infinity, NaN) and AGE-specific type annotations (::vertex,
+        /// ::edge, ::path, ::numeric) before deserialization.
+        /// </remarks>
         public T Get<T>()
         {
             using var jsonStream = ToJson(_value);
             return JsonSerializer.Deserialize<T>(jsonStream, SerializerOptions.ReadOptions)!;
         }
 
+        /// <summary>
+        /// Returns the raw agtype value as a string.
+        /// </summary>
+        /// <returns>The raw text representation (not JSON-parsed).</returns>
         public override string ToString()
         {
             return Encoding.UTF8.GetString(_value);
         }
 
+        /// <summary>
+        /// Writes the raw agtype bytes to the specified stream.
+        /// </summary>
+        /// <param name="stream">The stream to write to.</param>
         public void WriteTo(Stream stream)
         {
             foreach (var memory in _value)
@@ -326,6 +349,11 @@ namespace Npgsql.Age.Types
             }
         }
 
+        /// <summary>
+        /// Asynchronously writes the raw agtype bytes to the specified stream.
+        /// </summary>
+        /// <param name="stream">The stream to write to.</param>
+        /// <param name="cancellationToken">A cancellation token.</param>
         public async Task WriteToAsync(Stream stream, CancellationToken cancellationToken = default)
         {
             foreach (var memory in _value)
@@ -377,36 +405,52 @@ namespace Npgsql.Age.Types
         #endregion
 
         #region Explicit operators
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="byte"/>.</summary>
         public static explicit operator byte(Agtype agtype) => agtype.GetByte();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="sbyte"/>.</summary>
         public static explicit operator sbyte(Agtype agtype) => agtype.GetSByte();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="short"/>.</summary>
         public static explicit operator short(Agtype agtype) => agtype.GetInt16();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="ushort"/>.</summary>
         public static explicit operator ushort(Agtype agtype) => agtype.GetUInt16();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="int"/>.</summary>
         public static explicit operator int(Agtype agtype) => agtype.GetInt32();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="uint"/>.</summary>
         public static explicit operator uint(Agtype agtype) => agtype.GetUInt32();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="long"/>.</summary>
         public static explicit operator long(Agtype agtype) => agtype.GetInt64();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="ulong"/>.</summary>
         public static explicit operator ulong(Agtype agtype) => agtype.GetUInt64();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="decimal"/>.</summary>
         public static explicit operator decimal(Agtype agtype) => agtype.GetDecimal();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="float"/>.</summary>
         public static explicit operator float(Agtype agtype) => agtype.GetFloat();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="double"/>.</summary>
         public static explicit operator double(Agtype agtype) => agtype.GetDouble();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="string"/>.</summary>
         public static explicit operator string(Agtype agtype) => agtype.GetString();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="List{T}"/> of <see cref="object"/>.</summary>
         public static explicit operator List<object?>(Agtype agtype) => agtype.GetList();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="Vertex"/>.</summary>
         public static explicit operator Vertex(Agtype agtype) => agtype.GetVertex();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="Edge"/>.</summary>
         public static explicit operator Edge(Agtype agtype) => agtype.GetEdge();
 
+        /// <summary>Explicitly converts <see cref="Agtype"/> to <see cref="Dictionary{TKey, TValue}"/>.</summary>
         public static explicit operator Dictionary<string, object?>(Agtype agtype) =>
             agtype.GetMap();
         #endregion
