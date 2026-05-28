@@ -644,9 +644,12 @@ RETURN p"
         await DropTempGraphAsync(graphName);
     }
 
+    // This test uses ::jsonb::agtype chained cast which is only available in AGE 1.6.0+
     [Fact]
     public async Task ExecuteCypherQueryAsync_WithQuotedStringValues_Should_Work()
     {
+        if (!await AgeVersionSupportsTypeCasts())
+            return;
         var graphName = await CreateTempGraphAsync();
         await using var connection = await DataSource.OpenConnectionAsync();
 
@@ -872,8 +875,8 @@ $$) as (value agtype);",
         Assert.True(agResult.Value.IsArray);
         var elements = agResult.Value.GetList();
         Assert.Equal(2, elements.Count);
-        var v0 = Assert.IsType<Vertex>(elements[0]);
-        var v1 = Assert.IsType<Vertex>(elements[1]);
+        var v0 = Assert.IsType<Vertex<Dictionary<string, object?>>>(elements[0]);
+        var v1 = Assert.IsType<Vertex<Dictionary<string, object?>>>(elements[1]);
         Assert.Equal("Alice", v0.Properties["name"]);
         Assert.Equal("Bob", v1.Properties["name"]);
 

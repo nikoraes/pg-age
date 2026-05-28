@@ -491,13 +491,21 @@ namespace Npgsql.Age.Types
                         if (index == -1)
                             throw new InvalidOperationException($"Unexpected depth change for closing bracket at position {reader.Position}");
 
-                        var prefix = $@"{{""$type"":""{kind}"",";
-                        if (next == ']')
-                            prefix += $@"""segments"":[";
+                        var hasContent = segments.Count - 1 > index;
+                        var prefix = next == ']'
+                            ? hasContent
+                                ? $@"{{""$type"":""{kind}"",""segments"":"
+                                : $@"{{""$type"":""{kind}"",""segments"":[]"
+                            : hasContent
+                                ? $@"{{""$type"":""{kind}"","
+                                : $@"{{""$type"":""{kind}""}}";
                         segments[index] = new ReadOnlySequence<byte>(Encoding.UTF8.GetBytes(prefix));
 
-                        var suffix = next == ']' ? new[] { (byte)']', (byte)'}' } : new[] { (byte)'}' };
-                        segments.Add(new ReadOnlySequence<byte>(suffix));
+                        var suffix = next == ']'
+                            ? hasContent ? new[] { (byte)']', (byte)'}' } : new[] { (byte)'}' }
+                            : hasContent ? new[] { (byte)'}' } : ReadOnlyMemory<byte>.Empty;
+                        if (suffix.Length > 0)
+                            segments.Add(new ReadOnlySequence<byte>(suffix));
                     }
                     else
                     {
