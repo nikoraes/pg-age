@@ -24,6 +24,10 @@ namespace Npgsql.Age.Internal.JsonConverters
                 return false;
             else if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt32(out var integer))
                 return integer;
+            else if (reader.TokenType == JsonTokenType.Number && reader.TryGetInt64(out var @long))
+                return @long;
+            else if (reader.TokenType == JsonTokenType.Number && reader.TryGetDecimal(out var @decimal))
+                return @decimal;
             else if (reader.TokenType == JsonTokenType.Number)
                 return reader.GetDouble();
             else if (reader.TokenType == JsonTokenType.String)
