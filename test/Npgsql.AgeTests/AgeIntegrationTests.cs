@@ -262,7 +262,7 @@ $$) as (value agtype);",
             @"WITH 'This\u00A0is a and\/or string\r\n\tw\\some \'special\' ""characters"" and \\""escaped quotes\\"".' as p
 	RETURN p"
         );
-        var str = (string)(Agtype)(await command.ExecuteScalarAsync());
+        var str = (string)(Agtype)(await command.ExecuteScalarAsync())!;
 
         Assert.Equal("This\u00A0is a and/or string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\".", str);
         await DropTempGraphAsync(graphName);
@@ -282,7 +282,7 @@ $$) as (value agtype);",
             @"WITH '""This\\u00A0is a and\\/or string\\r\\n\\tw\\\\some \'special\' \\\""characters\\\"" and \\\\\\\""escaped quotes\\\\\\\"".""'::jsonb::agtype as p
 RETURN p"
         );
-        var str = (string)(Agtype)(await command.ExecuteScalarAsync());
+        var str = (string)(Agtype)(await command.ExecuteScalarAsync())!;
 
         Assert.Equal("This\u00A0is a and/or string\r\n\tw\\some 'special' \"characters\" and \\\"escaped quotes\\\".", str);
         await DropTempGraphAsync(graphName);

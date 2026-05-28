@@ -13,7 +13,7 @@ namespace Npgsql.Age.Types
         }
     }
 
-    public record Edge(GraphId Id, [property: JsonPropertyName("start_id")] GraphId StartId, [property: JsonPropertyName("end_id")] GraphId EndId, string Label, Dictionary<string, object> Properties)
+    public record Edge(GraphId Id, GraphId StartId, GraphId EndId, string Label, Dictionary<string, object> Properties)
     : Edge<Dictionary<string, object>>(Id, StartId, EndId, Label, Properties)
     {
         internal const string FOOTER = "::edge";
