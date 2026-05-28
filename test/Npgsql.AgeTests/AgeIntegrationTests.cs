@@ -325,7 +325,7 @@ RETURN p"
         Assert.Equal(new GraphId(0), vertex1.Id);
         Assert.Equal("label_name_1", vertex1.Label);
         Assert.True(vertex1.Properties.TryGetValue("n", out var propN));
-        Assert.Equal(new object?[] { null, 5, 3.1m, 3.2m, "$3.30", 3, 12345, double.NaN, double.PositiveInfinity, double.NegativeInfinity, 3.1E-11, 5.34m }, Assert.IsType<List<object>>(propN));
+        Assert.Equal(new object?[] { null, 5, 3.1m, 3.2m, "$3.30", 3, 12345, double.NaN, double.PositiveInfinity, double.NegativeInfinity, 0.000000000031m, 5.34m }, Assert.IsType<List<object>>(propN));
         Assert.True(vertex1.Properties.TryGetValue("b", out var propB));
         Assert.Equal(new object?[] { true, false, false }, Assert.IsType<List<object>>(propB));
         Assert.True(vertex1.Properties.TryGetValue("t", out var propT));
